@@ -1,1 +1,7 @@
 ---
+- name: deploy percona cluster
+  hosts: db
+  vors:
+    db_name: {{ db-user-name  }}
+    
+   
