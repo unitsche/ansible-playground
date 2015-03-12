@@ -10,6 +10,11 @@
     - slave.yml
 
   tasks:
+
+  - name: Update apt cache
+    sudo: yes
+    apt: update_cache=yes
+
   - name: Install basic python packages
     apt: pkg={{ item }} state=present
     sudo: True
@@ -41,7 +46,7 @@
       DEBIAN_FRONTEND: noninteractive
 
   - name: Create percona configuration file
-    template: src=templates/my.cnf.j2 dest=/etc/mysql/my.cnf
+    template: src=../templates/my.cnf.j2 dest=/etc/mysql/my.cnf
     notify:
     - restart mysql
 
@@ -56,7 +61,7 @@
 
   - name: Copy .my.cnf file with root password credentials
     sudo: yes
-    template: src=templates/my.cnf.j2 dest=~/.my.cnf mode=0600
+    template: src=../templates/my.cnf.j2 dest=~/.my.cnf mode=0600
 
   handlers:
   - name: restart mysql
