@@ -46,25 +46,33 @@
       DEBIAN_FRONTEND: noninteractive
 
   - name: Create percona configuration file
+    sudo: True
     template: src=../templates/my.cnf.j2 dest=/etc/mysql/my.cnf
     notify:
     - restart mysql
 
+  - name: Create database
+    sudo: True
+    mysql_db: name={{ db_name }} state=present
+    notify:
+      - restart mysql
+
+  - name: Create a the app database user
+    mysql_user: name={{ db_user  }} password={{ percona_user_passwd }} priv={{ db_name }}.*:ALL state=present
+
   - name: Update percona root password for all root accounts
-    sudo: yes
+    sudo: True
     mysql_user: name=root host={{ item }} password={{ percona_root_passwd }}
     with_items:
       - "{{ ansible_hostname }}"
       - 127.0.0.1
       - ::1
+      - "{{ db_name }}"
       - localhost
-
-  - name: Copy .my.cnf file with root password credentials
-    sudo: yes
-    template: src=../templates/my.cnf.j2 dest=~/.my.cnf mode=0600
 
   handlers:
   - name: restart mysql
+    sudo: True
     service: name=mysql state=restarted
   name: configure my.cnf 
     
