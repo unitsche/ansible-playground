@@ -58,8 +58,8 @@
       - restart mysql
 
   - name: Create a the app database user
-    mysql_user: name={{ db_user  }} password={{ percona_user_passwd }} priv={{ db_name }}.*:ALL state=present
-
+    mysql_user: name={{ db_user }} password={{ percona_user_passwd }} priv={{ db_name }}.*:ALL state=present
+ 
   - name: Update percona root password for all root accounts
     sudo: True
     mysql_user: name=root host={{ item }} password={{ percona_root_passwd }}
@@ -68,12 +68,25 @@
       - 127.0.0.1
       - ::1
       - "{{ db_name }}"
+      - 10.11.12.13
       - localhost
+
+  - name: db grant 
+    sudo: True
+    command: >
+       /usr/bin/mysql -uroot -p"{{ percona_root_passwd }}"
+        -e "GRANT ALL PRIVILEGES ON {{ db_name }}.* TO '{{ db_user }}'@'10.11.12.13' IDENTIFIED BY '{{ percona_user_passwd }}'"
+    tags:
+      - debug
+
+  - name: flush privileges
+    command: >
+        /usr/bin/mysql -uroot -p"{{ percona_root_passwd }}"
+        -e "FLUSH PRIVILEGES;"
+    tags:
+     - test
 
   handlers:
   - name: restart mysql
     sudo: True
     service: name=mysql state=restarted
-  name: configure my.cnf 
-    
-   
