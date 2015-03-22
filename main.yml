@@ -1,2 +1,3 @@
 ---
-  - include: db/percona.yml
+  - include: db/pxc-primary.yml
+  - include: db/pxc.yml

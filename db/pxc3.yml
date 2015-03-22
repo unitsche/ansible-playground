@@ -7,7 +7,6 @@
   vars_files:
     - mysqlsecrets.yml
     - masterdb.yml
-    - slave.yml
 
   tasks:
 
@@ -39,9 +38,7 @@
     apt: pkg={{ item }} state=present update_cache=yes
     sudo: True
     with_items:
-      - percona-server-common-5.6
-      - percona-server-client-5.6
-      - percona-server-server-5.6
+      - percona-xtradb-cluster-56
     environment:
       DEBIAN_FRONTEND: noninteractive
 
@@ -51,15 +48,6 @@
     notify:
     - restart mysql
 
-  - name: Create database
-    sudo: True
-    mysql_db: name={{ db_name }} state=present
-    notify:
-      - restart mysql
-
-  - name: Create a the app database user
-    mysql_user: name={{ db_user }} password={{ percona_user_passwd }} priv={{ db_name }}.*:ALL state=present
- 
   - name: Update percona root password for all root accounts
     sudo: True
     mysql_user: name=root host={{ item }} password={{ percona_root_passwd }}
@@ -68,14 +56,14 @@
       - 127.0.0.1
       - ::1
       - "{{ db_name }}"
-      - 10.11.12.13
+      - "{{ ansible_eth0.ipv4.address }}"
       - localhost
 
-  - name: db grant 
+  - name: db grant
     sudo: True
     command: >
        /usr/bin/mysql -uroot -p"{{ percona_root_passwd }}"
-        -e "GRANT ALL PRIVILEGES ON {{ db_name }}.* TO '{{ db_user }}'@'10.11.12.13' IDENTIFIED BY '{{ percona_user_passwd }}'"
+        -e "GRANT ALL PRIVILEGES ON {{ db_name }}.* TO '{{ db_user }}'@'{{ ansible_eth0.ipv4.address }}' IDENTIFIED BY '{{ percona_user_passwd }}'"
     tags:
       - debug
 

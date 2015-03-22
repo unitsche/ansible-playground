@@ -5,8 +5,12 @@ vagrant2 ansible_ssh_host=127.0.0.1 ansible_ssh_port=2200 ansible_ssh_user=vagra
 [dbservers]
 vagrant3 ansible_ssh_host=127.0.0.1 ansible_ssh_port=2201 ansible_ssh_user=vagrant ansible_ssh_pass=vagrant
 
-[pxc]
+[pxc-primary]
 vagrant4 ansible_ssh_host=127.0.0.1 ansible_ssh_port=2202 ansible_ssh_user=vagrant ansible_ssh_pass=vagrant
+
+[pxc]
+vagrant3 ansible_ssh_host=127.0.0.1 ansible_ssh_port=2201 ansible_ssh_user=vagrant ansible_ssh_pass=vagrant
+vagrant2 ansible_ssh_host=127.0.0.1 ansible_ssh_port=2200 ansible_ssh_user=vagrant ansible_ssh_pass=vagrant
 
 [vagrant]
 vagrant1

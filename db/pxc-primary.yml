@@ -1,0 +1,114 @@
+---
+- name: deploy percona cluster
+  hosts: pxc-primary
+  vars:
+    db_name: ekrprod
+    db_user: ekruser
+  vars_files:
+    - mysqlsecrets.yml
+    - masterdb.yml
+
+  tasks:
+
+  - name: Update apt cache
+    sudo: yes
+    apt: update_cache=yes
+
+  - name: Upgrade apt sources
+    sudo: True
+    apt: upgrade=full
+
+  - name: Install basic python packages
+    apt: pkg={{ item }} state=present
+    sudo: True
+    with_items:
+     - vim
+     - python-pycurl
+     - python-mysqldb
+
+  - name: add percona repository key id
+    apt_key: keyserver=keys.gnupg.net id=1C4CBDCDCD2EFD2A state=present
+    sudo: True
+
+  - name: add percona repository to sourcelist
+    apt_repository: repo='deb http://repo.percona.com/apt trusty main' state=present
+    sudo: True
+
+  - name: add percona source repository
+    apt_repository: repo='deb-src http://repo.percona.com/apt trusty main' state=present
+    sudo: True
+
+  - name: install the percona apt packages on the host
+    apt: pkg={{ item }} state=present update_cache=yes
+    sudo: True
+    with_items:
+      - percona-xtradb-cluster-56
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+
+  - name: Create percona configuration file
+    sudo: True
+    template: src=../templates/my.cnf.j2 dest=/etc/mysql/my.cnf
+
+  - name: Create database
+    sudo: True
+    mysql_db: name={{ db_name }} state=present
+
+  - name: Create a the app database user
+    mysql_user: name={{ db_user }} password={{ percona_user_passwd }} priv={{ db_name }}.*:ALL state=present
+
+  - name: remove test database
+    mysql_db: name=test state=absent
+
+  - name: Ensure anonymous users are not in the database
+    mysql_user: name='' host={{ item }} state=absent
+    with_items:
+      - "{{ ansible_hostname }}"
+      - 127.0.0.1
+      - ::1
+      - localhost
+       
+  - name: Update percona root password for all root accounts
+    sudo: True
+    mysql_user: name=root host={{ item }} password={{ percona_root_passwd }}
+    with_items:
+      - "{{ ansible_hostname }}"
+      - 127.0.0.1
+      - ::1
+      - "{{ db_name }}"
+      - "{{ ansible_eth0.ipv4.address }}"
+      - localhost
+
+  - name: Create cluster user
+    command: >
+       /usr/bin/mysql -uroot -p"{{ percona_root_passwd }}"
+       -e "CREATE USER 'sstuser'@'localhost' IDENTIFIED BY '{{ percona_sstuser_passwd  }}'"
+
+  - name: Grant privileges to sstuser
+    command: >
+       /usr/bin/mysql -uroot -p"{{ percona_root_passwd }}"
+       -e "GRANT RELOAD, LOCK TABLES, REPLICATION CLIENT ON *.* TO 'sstuser'@'localhost';"
+
+  - name: db grant
+    sudo: True
+    command: >
+       /usr/bin/mysql -uroot -p"{{ percona_root_passwd }}"
+        -e "GRANT ALL PRIVILEGES ON {{ db_name }}.* TO '{{ db_user }}'@'{{ ansible_eth0.ipv4.address }}' IDENTIFIED BY '{{ percona_user_passwd }}'"
+    tags:
+      - debug
+
+  - name: flush privileges
+    command: >
+        /usr/bin/mysql -uroot -p"{{ percona_root_passwd }}"
+        -e "FLUSH PRIVILEGES;"
+    tags:
+     - test
+
+  - name: initiate px cluster
+    sudo: True
+    command: "/etc/init.d/mysql bootstrap-pxc"
+
+  handlers:
+  - name: restart mysql
+    sudo: True
+    service: name=mysql state=restarted

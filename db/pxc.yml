@@ -1,0 +1,58 @@
+---
+- name: deploy percona cluster
+  hosts: pxc
+  vars:
+    db_name: ekrprod
+    db_user: ekruser
+  vars_files:
+    - mysqlsecrets.yml
+    - masterdb.yml
+
+  tasks:
+
+  - name: Update apt cache
+    sudo: yes
+    apt: update_cache=yes
+
+  - name: Install basic python packages
+    apt: pkg={{ item }} state=present
+    sudo: True
+    with_items:
+     - vim
+     - python-pycurl
+     - python-mysqldb
+
+  - name: add percona repository key id
+    apt_key: keyserver=keys.gnupg.net id=1C4CBDCDCD2EFD2A state=present
+    sudo: True
+
+  - name: add percona repository to sourcelist
+    apt_repository: repo='deb http://repo.percona.com/apt trusty main' state=present
+    sudo: True
+
+  - name: add percona source repository
+    apt_repository: repo='deb-src http://repo.percona.com/apt trusty main' state=present
+    sudo: True
+
+  - name: install the percona apt packages on the host
+    apt: pkg={{ item }} state=present update_cache=yes
+    sudo: True
+    with_items:
+      - percona-xtradb-cluster-56
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+
+  - name: Create percona configuration file
+    sudo: True
+    template: src=../templates/my.cnf.j2 dest=/etc/mysql/my.cnf
+    notify:
+    - restart mysql
+
+  - name: Start the cluster node
+    sudo: True
+    command: "/etc/init.d/mysql start"
+
+  handlers:
+  - name: restart mysql
+    sudo: True
+    service: name=mysql state=restarted
